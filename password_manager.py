@@ -65,7 +65,6 @@ def get_strength_category(score: int) -> tuple[str, str]:
     else:
         return "Very Strong", "blue"
 
-
 def check_master_key_strength(key: str) -> list[str]:
     """Checks the master key against the defined requirements and returns a list of unmet requirements."""
     unmet = []
@@ -86,3 +85,4 @@ def check_master_key_strength(key: str) -> list[str]:
         unmet.append("At least 1 special character (!@#$%^& etc.)")
 
     return unmet
+
