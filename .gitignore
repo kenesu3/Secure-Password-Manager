@@ -121,3 +121,9 @@ cmake-build-*/
 # modules.xml
 # .idea/misc.xml
 # *.ipr
+
+# Ignore all .key files (often used for SSL/TLS keys)
+*.key
+
+# Ignore all .json files
+*.json
