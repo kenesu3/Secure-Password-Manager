@@ -270,3 +270,49 @@ class PasswordManager:
             return decrypted.decode()
         except Exception:
             return "DECRYPTION FAILED"
+
+    def add_account(self, account_name: str, username: str, password: str) -> bool:
+        """Adds a new encrypted account."""
+        if not all([account_name, username, password]):
+            return False
+        try:
+            encrypted_password = self.encrypt_password(password)
+            new_account = {
+                "account_name": account_name,
+                "username": username,
+                "password": encrypted_password
+            }
+            self.accounts.append(new_account)
+            self.save_data()
+            return True
+        except Exception as e:
+            print(f"Error adding account: {e}")
+            return False
+
+    def get_all_accounts(self):
+        """Returns all accounts (without passwords)."""
+        return [(acc["account_name"], acc["username"]) for acc in self.accounts]
+
+    def get_account_password(self, index: int) -> str:
+        """Returns the decrypted password for an account at the given index."""
+        if 0 <= index < len(self.accounts):
+            encrypted_pass = self.accounts[index]["password"]
+            return self.decrypt_password(encrypted_pass)
+        return None
+
+    def delete_account(self, index: int) -> bool:
+        """Deletes an account at the given index."""
+        if 0 <= index < len(self.accounts):
+            del self.accounts[index]
+            self.save_data()
+            return True
+        return False
+
+    def search_accounts(self, keyword: str):
+        """Searches for accounts by name or username."""
+        keyword = keyword.lower()
+        results = []
+        for i, acc in enumerate(self.accounts):
+            if keyword in acc["account_name"].lower() or keyword in acc["username"].lower():
+                results.append((i, acc["account_name"], acc["username"]))
+        return results
