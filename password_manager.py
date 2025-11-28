@@ -690,3 +690,50 @@ class PasswordManagerGUI:
 
         # Initial strength check
         update_strength_meter()
+
+    def view_password(self):
+        """Views the password for the selected account in a new popup window."""
+        selection = self.accounts_listbox.curselection()
+        if not selection or selection[0] < 2:  # Ignore header rows
+            messagebox.showwarning("Warning", "Please select a valid account.")
+            return
+
+        listbox_index = selection[0] - 2  # Adjust for header rows
+
+        if self.current_search_results:
+            actual_index = self.current_search_results[listbox_index][0]
+        else:
+            actual_index = listbox_index
+
+        password = self.manager.get_account_password(actual_index)
+
+        if password and password != "DECRYPTION FAILED":
+
+            # --- New Popup Window ---
+            popup = tk.Toplevel(self.root)
+            popup.title("View Password")
+            popup.geometry("400x150")
+            popup.resizable(False, False)
+            popup.grab_set()
+
+            # Get account name for display
+            account_line = self.accounts_listbox.get(selection[0])
+            account_name = account_line.split(' | ')[0].strip()
+
+            ttk.Label(popup, text=f"Password for: {account_name}", font=("Arial", 12, "bold")).pack(pady=10)
+
+            # Password Display Entry (Read-only)
+            password_entry = ttk.Entry(popup, width=40, font=("Courier", 10))
+            password_entry.insert(0, password)
+            password_entry.config(state='readonly')
+            password_entry.pack(pady=5, padx=10)
+
+            def copy_password():
+                self.root.clipboard_clear()
+                self.root.clipboard_append(password)
+                messagebox.showinfo("Copied", "Password copied to clipboard!")
+
+            ttk.Button(popup, text="Copy Password", command=copy_password, style='Accent.TButton').pack(pady=10)
+
+        else:
+            messagebox.showerror("Error", "Failed to retrieve password. Key may be invalid.")
