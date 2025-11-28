@@ -737,3 +737,26 @@ class PasswordManagerGUI:
 
         else:
             messagebox.showerror("Error", "Failed to retrieve password. Key may be invalid.")
+
+    def delete_account_dialog(self):
+        """Deletes the selected account after confirmation."""
+        selection = self.accounts_listbox.curselection()
+        if not selection or selection[0] < 2:  # Ignore header rows
+            messagebox.showwarning("Warning", "Please select a valid account.")
+            return
+
+        listbox_index = selection[0] - 2  # Adjust for header rows
+
+        if self.current_search_results:
+            actual_index = self.current_search_results[listbox_index][0]
+        else:
+            actual_index = listbox_index
+
+        confirm = messagebox.askyesno("Confirm", "Are you sure you want to delete this account?")
+        if confirm:
+            if self.manager.delete_account(actual_index):
+                messagebox.showinfo("Success", "Account deleted and saved successfully!")
+                self.clear_search()
+            else:
+                messagebox.showerror("Error", "Failed to delete account. Check file permissions.")
+
