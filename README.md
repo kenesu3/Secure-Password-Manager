@@ -16,6 +16,7 @@ This application is a secure, local desktop-based password manager developed in 
 * Ability to change master key and re-encrypt stored data
 * Search functionality for accounts
 * Tkinter GUI for managing accounts
+* Auto-lock when inactive for 2 minutes
 
 ## Technical Specifications
 
