@@ -516,6 +516,66 @@ class PasswordManagerGUI:
         ttk.Button(button_frame, text="Delete Account", command=self.delete_account_dialog,
                    style='Danger.TButton').pack(side=tk.LEFT, padx=5)
 
+    def handle_lock(self):
+        """Locks the application and returns to the master key screen."""
+        if messagebox.askyesno("Lock Application", "Are you sure you want to lock the application?"):
+            # Clear sensitive data from memory
+            self.manager.accounts = []
+            self.manager.key = None
+            self.manager.fernet = None
+            self.setup_master_password_window()
+
+    def change_master_key_dialog(self):
+        """Opens a dialog to change the master key."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Change Master Key")
+        dialog.geometry("500x400")
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text="Set New Master Key", font=("Arial", 14, "bold")).pack(pady=10)
+
+        # Display requirements
+        req_text = "Master Key Requirements:\n"
+        req_text += f"- Minimum {MASTER_KEY_REQUIREMENTS['min_length']} characters\n"
+        req_text += "- At least 1 uppercase letter (A-Z)\n"
+        req_text += "- At least 1 lowercase letter (a-z)\n"
+        req_text += "- At least 1 number (0-9)\n"
+        req_text += "- At least 1 special character (!@#$%^& etc.)"
+        ttk.Label(dialog, text=req_text, justify=tk.LEFT, foreground="gray").pack(pady=5)
+
+        # New Master Key Entry
+        new_key_frame, new_key_entry = create_password_entry(dialog, "New Key:", width=25)
+        new_key_frame.pack(pady=5)
+
+        # Confirm New Master Key Entry
+        confirm_frame, confirm_entry = create_password_entry(dialog, "Confirm Key:", width=25)
+        confirm_frame.pack(pady=5)
+
+        def update_key():
+            new_key = new_key_entry.get()
+            confirm_key = confirm_entry.get()
+
+            if new_key != confirm_key:
+                messagebox.showerror("Error", "New Master Keys do not match.")
+                return
+
+            # Validation for setting a new key
+            unmet_requirements = check_master_key_strength(new_key)
+            if unmet_requirements:
+                messagebox.showerror("Weak Master Key",
+                                     "Your New Master Key does not meet the following requirements:\n- " + "\n- ".join(
+                                         unmet_requirements))
+                return
+
+            if self.manager.update_key(new_key):
+                messagebox.showinfo("Success", "Master Key successfully changed and all passwords re-encrypted!")
+                dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to change Master Key. Data may be corrupted.")
+
+        ttk.Button(dialog, text="Change Master Key", command=update_key, style='Accent.TButton').pack(pady=20)
+
     def refresh_accounts_list(self):
         """Refreshes the accounts listbox."""
         self.accounts_listbox.delete(0, tk.END)
