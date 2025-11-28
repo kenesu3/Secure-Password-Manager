@@ -316,3 +316,38 @@ class PasswordManager:
             if keyword in acc["account_name"].lower() or keyword in acc["username"].lower():
                 results.append((i, acc["account_name"], acc["username"]))
         return results
+
+
+def generate_secure_password(length, use_upper, use_lower, use_digits, use_special):
+    """Generates a secure random password based on criteria using the secrets module."""
+    characters = ""
+    if use_upper:
+        characters += string.ascii_uppercase
+    if use_lower:
+        characters += string.ascii_lowercase
+    if use_digits:
+        characters += string.digits
+    if use_special:
+        characters += string.punctuation
+
+    if not characters:
+        return ""
+
+    # Ensure at least one of each selected type is present
+    password = []
+    if use_upper:
+        password.append(secrets.choice(string.ascii_uppercase))
+    if use_lower:
+        password.append(secrets.choice(string.ascii_lowercase))
+    if use_digits:
+        password.append(secrets.choice(string.digits))
+    if use_special:
+        password.append(secrets.choice(string.punctuation))
+
+    # Fill the rest of the length
+    remaining_length = length - len(password)
+    if remaining_length > 0:
+        password.extend(secrets.choice(characters) for _ in range(remaining_length))
+
+    secrets.SystemRandom().shuffle(password)
+    return "".join(password)
