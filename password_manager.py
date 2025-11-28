@@ -168,3 +168,48 @@ class PasswordManager:
                 f.write(self.key)
             self.fernet = Fernet(self.key)
             return True
+
+    def update_key(self, new_master_key: str) -> bool:
+        """Updates the master key, re-encrypts all data, and saves the new key."""
+        try:
+            # 1. Derive the new key
+            new_key = self._derive_key(new_master_key)
+            new_fernet = Fernet(new_key)
+
+            # 2. Decrypt all accounts with the old key
+            decrypted_accounts = []
+            for acc in self.accounts:
+                decrypted_pass = self.decrypt_password(acc["password"])
+                if decrypted_pass == "DECRYPTION FAILED":
+                    raise Exception("Failed to decrypt existing data with current key.")
+                decrypted_accounts.append({
+                    "account_name": acc["account_name"],
+                    "username": acc["username"],
+                    "password": decrypted_pass
+                })
+
+            # 3. Encrypt all accounts with the new key
+            self.accounts = []
+            for acc in decrypted_accounts:
+                encrypted_pass = new_fernet.encrypt(acc["password"].encode()).decode()
+                self.accounts.append({
+                    "account_name": acc["account_name"],
+                    "username": acc["username"],
+                    "password": encrypted_pass
+                })
+
+            # 4. Update the key file
+            with open(KEY_FILE, "wb") as f:
+                f.write(new_key)
+
+            # 5. Update the in-memory key and Fernet object
+            self.key = new_key
+            self.fernet = new_fernet
+
+            # 6. Save the re-encrypted data
+            self.save_data()
+
+            return True
+        except Exception as e:
+            print(f"Error updating master key: {e}")
+            return False
