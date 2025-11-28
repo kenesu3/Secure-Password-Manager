@@ -18,7 +18,7 @@ DATA_FILE = "passwords.json"
 KEY_FILE = "secret.key"
 SALT_FILE = "salt.key" # New constant for salt file
 
-# Removed: SALT = b'a_unique_salt_for_this_app'
+# Removed: SALT = b'a_unique_salt_for_this_app' - Changed to a dynamic salt hashing
 SINGLE_USER_ID = "default_user"
 
 # --- Master Key Validation Requirements ---
@@ -29,3 +29,60 @@ MASTER_KEY_REQUIREMENTS = {
     "number": r"[0-9]",
     "special_char": r"[!@#$%^&*()_+=\-\[\]{};':\"\\|,.<>/?`~]",
 }
+
+
+def calculate_password_strength(password: str) -> int:
+    """Calculates a password strength score (0-100)."""
+    score = 0
+    length = len(password)
+
+    # Length bonus (max 25 points for length > 12)
+    score += min(25, length * 2)
+
+    # Character set bonuses (max 60 points)
+    has_upper = bool(re.search(r'[A-Z]', password))
+    has_lower = bool(re.search(r'[a-z]', password))
+    has_digit = bool(re.search(r'[0-9]', password))
+    has_special = bool(re.search(r'[!@#$%^&*()_+=\-\[\]{};:\'"\\|,.<>/?`~]', password))
+
+    char_types = sum([has_upper, has_lower, has_digit, has_special])
+    score += char_types * 15
+
+    # Simple entropy bonus (max 15 points)
+    if length > 8 and char_types >= 3:
+        score += 15
+
+    return max(0, min(100, score))
+
+def get_strength_category(score: int) -> tuple[str, str]:
+    """Returns the strength category and color."""
+    if score < 40:
+        return "Weak", "red"
+    elif score < 65:
+        return "Medium", "orange"
+    elif score < 85:
+        return "Strong", "green"
+    else:
+        return "Very Strong", "blue"
+
+
+def check_master_key_strength(key: str) -> list[str]:
+    """Checks the master key against the defined requirements and returns a list of unmet requirements."""
+    unmet = []
+
+    if len(key) < MASTER_KEY_REQUIREMENTS["min_length"]:
+        unmet.append(f"Minimum {MASTER_KEY_REQUIREMENTS['min_length']} characters")
+
+    if not re.search(MASTER_KEY_REQUIREMENTS["uppercase"], key):
+        unmet.append("At least 1 uppercase letter (A-Z)")
+
+    if not re.search(MASTER_KEY_REQUIREMENTS["lowercase"], key):
+        unmet.append("At least 1 lowercase letter (a-z)")
+
+    if not re.search(MASTER_KEY_REQUIREMENTS["number"], key):
+        unmet.append("At least 1 number (0-9)")
+
+    if not re.search(MASTER_KEY_REQUIREMENTS["special_char"], key):
+        unmet.append("At least 1 special character (!@#$%^& etc.)")
+
+    return unmet
