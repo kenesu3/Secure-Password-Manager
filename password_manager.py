@@ -86,3 +86,28 @@ def check_master_key_strength(key: str) -> list[str]:
 
     return unmet
 
+# --- Helper Function for Password Visibility Toggle ---
+def create_password_entry(parent, label_text, width=30):
+    """Creates a label, entry field, and show/hide button for a password."""
+    # Frame to hold the label, entry, and button
+    container_frame = ttk.Frame(parent)
+
+    ttk.Label(container_frame, text=label_text, width=12, anchor=tk.W).pack(side=tk.LEFT, padx=5)
+
+    entry = ttk.Entry(container_frame, show="*", width=width)
+    entry.pack(side=tk.LEFT, padx=5)
+
+    # Toggle function
+    def toggle_visibility():
+        if entry.cget('show') == '*':
+            entry.config(show='')
+            show_btn.config(text="Hide")
+        else:
+            entry.config(show='*')
+            show_btn.config(text="Show")
+
+    show_btn = ttk.Button(container_frame, text="Show", command=toggle_visibility, width=5)
+    show_btn.pack(side=tk.LEFT, padx=5)
+
+    return container_frame, entry
+
