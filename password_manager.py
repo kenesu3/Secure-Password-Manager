@@ -516,3 +516,51 @@ class PasswordManagerGUI:
         ttk.Button(button_frame, text="Delete Account", command=self.delete_account_dialog,
                    style='Danger.TButton').pack(side=tk.LEFT, padx=5)
 
+    def refresh_accounts_list(self):
+        """Refreshes the accounts listbox."""
+        self.accounts_listbox.delete(0, tk.END)
+        accounts = self.manager.get_all_accounts()
+
+        # Determine max length for alignment
+        max_name_len = max([len(name) for name, _ in accounts] or [20])  # Default to 20 for header
+
+        # Header for alignment
+        header = f"{'Account Name':<{max_name_len + 2}} | {'Username/Email'}"
+        self.accounts_listbox.insert(tk.END, header)
+        self.accounts_listbox.insert(tk.END, "-" * len(header))
+
+        for name, username in accounts:
+            # Use f-string formatting for fixed-width columns
+            line = f"{name:<{max_name_len + 2}} | {username}"
+            self.accounts_listbox.insert(tk.END, line)
+
+    def on_search(self):
+        """Handles the search functionality."""
+        keyword = self.search_entry.get()
+        if not keyword:
+            self.clear_search()
+            return
+
+        self.accounts_listbox.delete(0, tk.END)
+        self.current_search_results = self.manager.search_accounts(keyword)
+
+        accounts = [(name, username) for _, name, username in self.current_search_results]
+        max_name_len = max([len(name) for name, _ in accounts] or [20])
+
+        # Header for alignment
+        header = f"{'Account Name':<{max_name_len + 2}} | {'Username/Email'}"
+        self.accounts_listbox.insert(tk.END, header)
+        self.accounts_listbox.insert(tk.END, "-" * len(header))
+
+        if self.current_search_results:
+            for _, name, username in self.current_search_results:
+                line = f"{name:<{max_name_len + 2}} | {username}"
+                self.accounts_listbox.insert(tk.END, line)
+        else:
+            self.accounts_listbox.insert(tk.END, "No accounts found.")
+
+    def clear_search(self):
+        """Clears the search and refreshes the list."""
+        self.search_entry.delete(0, tk.END)
+        self.current_search_results = []
+        self.refresh_accounts_list()
