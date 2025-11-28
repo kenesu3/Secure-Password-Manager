@@ -454,3 +454,65 @@ class PasswordManagerGUI:
 
         ttk.Button(button_frame, text="Unlock/Set Key", command=set_master_key, style='Accent.TButton').pack()
 
+    def create_main_ui(self):
+        """Creates the main user interface."""
+        # Clear the root window
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        # --- Header Frame (Title, Search, Lock/Change Key) ---
+        header_frame = ttk.Frame(self.root, padding="10")
+        header_frame.pack(pady=0, padx=10, fill=tk.X)
+
+        # Title
+        title_label = ttk.Label(header_frame, text=f"🔐 Secure Password Manager", font=("Arial", 18, "bold"))
+        title_label.pack(side=tk.LEFT, padx=10)
+
+        # Search Bar
+        search_frame = ttk.Frame(header_frame)
+        search_frame.pack(side=tk.LEFT, padx=20)
+
+        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=5)
+        self.search_entry = ttk.Entry(search_frame, width=30)
+        self.search_entry.pack(side=tk.LEFT, padx=5)
+        self.search_entry.bind("<KeyRelease>", lambda e: self.on_search())
+
+        ttk.Button(search_frame, text="Search", command=self.on_search).pack(side=tk.LEFT, padx=5)
+        ttk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT, padx=5)
+
+        # Lock/Change Key Buttons
+        header_buttons_frame = ttk.Frame(header_frame)
+        header_buttons_frame.pack(side=tk.RIGHT, padx=10)
+
+        ttk.Button(header_buttons_frame, text="Change Master Key", command=self.change_master_key_dialog).pack(
+            side=tk.LEFT, padx=5)
+        ttk.Button(header_buttons_frame, text="Lock", command=self.handle_lock, style='Danger.TButton').pack(
+            side=tk.LEFT, padx=5)
+
+        # --- Account List Frame ---
+        list_frame = ttk.Frame(self.root, padding="10")
+        list_frame.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+
+        ttk.Label(list_frame, text="Your Accounts:", font=("Arial", 12, "bold")).pack(anchor=tk.W, pady=(0, 5))
+
+        # Listbox with scrollbar
+        scrollbar = ttk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Use Monospace font (Courier) for alignment
+        self.accounts_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=12, font=("Courier", 10))
+        self.accounts_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.accounts_listbox.yview)
+
+        self.refresh_accounts_list()
+
+        # --- Button Frame ---
+        button_frame = ttk.Frame(self.root, padding="10")
+        button_frame.pack(pady=0, padx=10, fill=tk.X)
+
+        ttk.Button(button_frame, text="Add Account", command=self.add_account_dialog, style='Accent.TButton').pack(
+            side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="View Password", command=self.view_password).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Delete Account", command=self.delete_account_dialog,
+                   style='Danger.TButton').pack(side=tk.LEFT, padx=5)
+
