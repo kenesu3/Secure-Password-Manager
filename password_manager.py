@@ -564,3 +564,129 @@ class PasswordManagerGUI:
         self.search_entry.delete(0, tk.END)
         self.current_search_results = []
         self.refresh_accounts_list()
+
+    def add_account_dialog(self):
+        """Opens a dialog to add a new account."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Add New Account")
+        dialog.geometry("600x550")
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text="Add New Account", font=("Arial", 14, "bold")).pack(pady=10)
+
+        # Frame for input fields to use grid for alignment
+        input_frame = ttk.Frame(dialog, padding="10")
+        input_frame.pack(pady=10, padx=20)
+
+        # Account Name
+        ttk.Label(input_frame, text="Account Name:", width=15, anchor=tk.W).grid(row=0, column=0, sticky=tk.W, pady=5,
+                                                                                 padx=5)
+        name_entry = ttk.Entry(input_frame, width=40)
+        name_entry.grid(row=0, column=1, pady=5, padx=5, sticky=tk.W)
+
+        # Username
+        ttk.Label(input_frame, text="Username/Email:", width=15, anchor=tk.W).grid(row=1, column=0, sticky=tk.W, pady=5,
+                                                                                   padx=5)
+        username_entry = ttk.Entry(input_frame, width=40)
+        username_entry.grid(row=1, column=1, pady=5, padx=5, sticky=tk.W)
+
+        # Password (Now uses the helper function)
+        password_frame, password_entry = create_password_entry(input_frame, "Password:", width=30)
+        password_frame.grid(row=2, column=0, columnspan=2, pady=5)
+
+        # --- Password Strength Meter ---
+        strength_var = tk.StringVar(value="Strength: N/A")
+        strength_label = ttk.Label(input_frame, textvariable=strength_var, font=("Arial", 10, "bold"))
+        strength_label.grid(row=3, column=0, columnspan=2, sticky=tk.W, padx=5)
+
+        def update_strength_meter(event=None):
+            password = password_entry.get()
+            score = calculate_password_strength(password)
+            category, color = get_strength_category(score)
+            strength_var.set(f"Strength: {category} ({score}/100)")
+            strength_label.config(foreground=color)
+
+        password_entry.bind("<KeyRelease>", update_strength_meter)
+
+        # --- Password Generator Section ---
+        ttk.Label(input_frame, text="Password Generator:", font=("Arial", 10, "bold")).grid(row=4, column=0,
+                                                                                            columnspan=2, sticky=tk.W,
+                                                                                            pady=(10, 5))
+
+        # Generator Controls Frame
+        gen_frame = ttk.Frame(input_frame)
+        gen_frame.grid(row=5, column=0, columnspan=2, sticky=tk.W, padx=5)
+
+        # Length
+        ttk.Label(gen_frame, text="Length (8-64):").pack(side=tk.LEFT, padx=5)
+        length_var = tk.IntVar(value=16)
+        length_spin = ttk.Spinbox(gen_frame, from_=8, to=64, textvariable=length_var, width=5)
+        length_spin.pack(side=tk.LEFT, padx=5)
+
+        # Checkboxes
+        upper_var = tk.BooleanVar(value=True)
+        lower_var = tk.BooleanVar(value=True)
+        digit_var = tk.BooleanVar(value=True)
+        special_var = tk.BooleanVar(value=True)
+
+        ttk.Checkbutton(gen_frame, text="A-Z", variable=upper_var).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(gen_frame, text="a-z", variable=lower_var).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(gen_frame, text="0-9", variable=digit_var).pack(side=tk.LEFT, padx=5)
+        ttk.Checkbutton(gen_frame, text="!@#", variable=special_var).pack(side=tk.LEFT, padx=5)
+
+        # Generated Password Display
+        generated_pass_var = tk.StringVar()
+        generated_pass_entry = ttk.Entry(input_frame, textvariable=generated_pass_var, width=40, state='readonly')
+        generated_pass_entry.grid(row=6, column=0, columnspan=2, pady=5, padx=5, sticky=tk.W)
+
+        def generate_and_display():
+            try:
+                length = length_var.get()
+                if not (8 <= length <= 64):
+                    messagebox.showerror("Error", "Password length must be between 8 and 64.")
+                    return
+            except tk.TclError:
+                messagebox.showerror("Error", "Invalid length value.")
+                return
+
+            password = generate_secure_password(
+                length, upper_var.get(), lower_var.get(), digit_var.get(), special_var.get()
+            )
+            generated_pass_var.set(password)
+
+        def use_generated_password():
+            password_entry.delete(0, tk.END)
+            password_entry.insert(0, generated_pass_var.get())
+            update_strength_meter()  # Update meter after inserting
+
+        ttk.Button(input_frame, text="Generate", command=generate_and_display).grid(row=6, column=1, sticky=tk.E,
+                                                                                    padx=5)
+        ttk.Button(input_frame, text="Use Password", command=use_generated_password, style='Accent.TButton').grid(row=7,
+                                                                                                                  column=1,
+                                                                                                                  sticky=tk.E,
+                                                                                                                  padx=5)
+
+        # Initial generation
+        generate_and_display()
+
+        def save_account():
+            account_name = name_entry.get()
+            username = username_entry.get()
+            password = password_entry.get()
+
+            if not all([account_name, username, password]):
+                messagebox.showerror("Error", "All fields are required.")
+                return
+
+            if self.manager.add_account(account_name, username, password):
+                messagebox.showinfo("Success", "Account added and saved successfully!")
+                self.clear_search()
+                dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to add and save account. Check file permissions.")
+
+        ttk.Button(dialog, text="Save Account", command=save_account, style='Accent.TButton').pack(pady=20)
+
+        # Initial strength check
+        update_strength_meter()
