@@ -48,7 +48,7 @@ pip install cryptography
 ### Running the Application
 
 ```bash
-python password_manager.py
+password_manager.py
 ```
 
 The first launch will prompt you to create a master key and will generate the following files:
