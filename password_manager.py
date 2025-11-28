@@ -5,7 +5,7 @@ import os
 import base64
 import re
 import string
-import secrets # Use secrets for secure random generation
+import secrets  # Use secrets for secure random generation
 import threading
 import time
 from cryptography.fernet import Fernet
@@ -16,10 +16,9 @@ from cryptography.hazmat.backends import default_backend
 # --- Configuration ---
 DATA_FILE = "passwords.json"
 KEY_FILE = "secret.key"
-SALT_FILE = "salt.key" # New constant for salt file
-
-# Removed: SALT = b'a_unique_salt_for_this_app' - Changed to a dynamic salt hashing
+SALT_FILE = "salt.key"
 SINGLE_USER_ID = "default_user"
+AUTO_LOCK_TIMEOUT_MS = 120000  # 2 minutes in milliseconds
 
 # --- Master Key Validation Requirements ---
 MASTER_KEY_REQUIREMENTS = {
@@ -31,6 +30,7 @@ MASTER_KEY_REQUIREMENTS = {
 }
 
 
+# --- Password Strength Calculation ---
 def calculate_password_strength(password: str) -> int:
     """Calculates a password strength score (0-100)."""
     score = 0
@@ -54,6 +54,7 @@ def calculate_password_strength(password: str) -> int:
 
     return max(0, min(100, score))
 
+
 def get_strength_category(score: int) -> tuple[str, str]:
     """Returns the strength category and color."""
     if score < 40:
@@ -64,6 +65,7 @@ def get_strength_category(score: int) -> tuple[str, str]:
         return "Strong", "green"
     else:
         return "Very Strong", "blue"
+
 
 def check_master_key_strength(key: str) -> list[str]:
     """Checks the master key against the defined requirements and returns a list of unmet requirements."""
@@ -85,6 +87,7 @@ def check_master_key_strength(key: str) -> list[str]:
         unmet.append("At least 1 special character (!@#$%^& etc.)")
 
     return unmet
+
 
 # --- Helper Function for Password Visibility Toggle ---
 def create_password_entry(parent, label_text, width=30):
@@ -133,6 +136,7 @@ class PasswordManager:
             except Exception as e:
                 print(f"Warning: Could not set file permissions for {SALT_FILE}: {e}")
 
+    # --- Key and Data Management ---
     def _derive_key(self, master_password: str) -> bytes:
         """Derives a Fernet key from the master password using PBKDF2HMAC."""
         kdf = PBKDF2HMAC(
@@ -213,6 +217,7 @@ class PasswordManager:
         except Exception as e:
             print(f"Error updating master key: {e}")
             return False
+
     def load_data(self):
         """Loads encrypted account data from the JSON file."""
         if not self.key:
@@ -254,6 +259,7 @@ class PasswordManager:
         except Exception:
             return False
 
+    # --- Account Operations ---
     def encrypt_password(self, password: str) -> str:
         """Encrypts a password using Fernet."""
         if not self.fernet:
@@ -318,6 +324,7 @@ class PasswordManager:
         return results
 
 
+# --- Password Generator Logic ---
 def generate_secure_password(length, use_upper, use_lower, use_digits, use_special):
     """Generates a secure random password based on criteria using the secrets module."""
     characters = ""
@@ -372,6 +379,7 @@ class PasswordManagerGUI:
 
         self.manager = PasswordManager()
         self.current_search_results = []
+        self.auto_lock_job = None  # To hold the after() job ID
 
         # Start directly with the master key window
         self.setup_master_password_window()
@@ -380,7 +388,32 @@ class PasswordManagerGUI:
 
     def on_closing(self):
         """Handles the window closing event."""
+        if self.auto_lock_job:
+            self.root.after_cancel(self.auto_lock_job)
         self.root.destroy()
+
+    # --- Auto-Lock Mechanism ---
+    def start_auto_lock_timer(self):
+        """Starts the inactivity timer."""
+        if self.auto_lock_job:
+            self.root.after_cancel(self.auto_lock_job)
+        self.auto_lock_job = self.root.after(AUTO_LOCK_TIMEOUT_MS, self.handle_auto_lock)
+
+    def reset_auto_lock_timer(self, event=None):
+        """Resets the inactivity timer on user activity."""
+        self.start_auto_lock_timer()
+
+    def handle_auto_lock(self):
+        """Locks the application due to inactivity."""
+        # Cancel the job to prevent it from firing again
+        if self.auto_lock_job:
+            self.root.after_cancel(self.auto_lock_job)
+            self.auto_lock_job = None
+
+        # Only lock if the main UI is currently visible (i.e., not already on the master key screen)
+        if self.manager.key:
+            messagebox.showwarning("Auto-Lock", "Application locked due to 2 minutes of inactivity.")
+            self.handle_lock(confirm=False)  # Lock without asking for confirmation
 
     # --- Master Key UI ---
     def setup_master_password_window(self):
@@ -388,6 +421,11 @@ class PasswordManagerGUI:
         # Clear the root window
         for widget in self.root.winfo_children():
             widget.destroy()
+
+        # Cancel any pending auto-lock job
+        if self.auto_lock_job:
+            self.root.after_cancel(self.auto_lock_job)
+            self.auto_lock_job = None
 
         self.master_key_frame = ttk.Frame(self.root, padding="20")
         self.master_key_frame.pack(expand=True, fill='both')
@@ -454,11 +492,16 @@ class PasswordManagerGUI:
 
         ttk.Button(button_frame, text="Unlock/Set Key", command=set_master_key, style='Accent.TButton').pack()
 
+    # --- Main UI ---
     def create_main_ui(self):
         """Creates the main user interface."""
         # Clear the root window
         for widget in self.root.winfo_children():
             widget.destroy()
+
+        # Bind events to reset the auto-lock timer
+        self.root.bind_all("<Key>", self.reset_auto_lock_timer)
+        self.root.bind_all("<Button>", self.reset_auto_lock_timer)
 
         # --- Header Frame (Title, Search, Lock/Change Key) ---
         header_frame = ttk.Frame(self.root, padding="10")
@@ -486,8 +529,8 @@ class PasswordManagerGUI:
 
         ttk.Button(header_buttons_frame, text="Change Master Key", command=self.change_master_key_dialog).pack(
             side=tk.LEFT, padx=5)
-        ttk.Button(header_buttons_frame, text="Lock", command=self.handle_lock, style='Danger.TButton').pack(
-            side=tk.LEFT, padx=5)
+        ttk.Button(header_buttons_frame, text="Lock", command=lambda: self.handle_lock(confirm=True),
+                   style='Danger.TButton').pack(side=tk.LEFT, padx=5)
 
         # --- Account List Frame ---
         list_frame = ttk.Frame(self.root, padding="10")
@@ -516,9 +559,20 @@ class PasswordManagerGUI:
         ttk.Button(button_frame, text="Delete Account", command=self.delete_account_dialog,
                    style='Danger.TButton').pack(side=tk.LEFT, padx=5)
 
-    def handle_lock(self):
+        # Start the auto-lock timer when the main UI is created
+        self.start_auto_lock_timer()
+
+    def handle_lock(self, confirm=True):
         """Locks the application and returns to the master key screen."""
-        if messagebox.askyesno("Lock Application", "Are you sure you want to lock the application?"):
+        should_lock = True
+        if confirm:
+            should_lock = messagebox.askyesno("Lock Application", "Are you sure you want to lock the application?")
+
+        if should_lock:
+            # Unbind events to stop resetting the timer
+            self.root.unbind_all("<Key>")
+            self.root.unbind_all("<Button>")
+
             # Clear sensitive data from memory
             self.manager.accounts = []
             self.manager.key = None
@@ -527,6 +581,9 @@ class PasswordManagerGUI:
 
     def change_master_key_dialog(self):
         """Opens a dialog to change the master key."""
+        # Reset timer when dialog is opened
+        self.reset_auto_lock_timer()
+
         dialog = tk.Toplevel(self.root)
         dialog.title("Change Master Key")
         dialog.geometry("500x400")
@@ -596,6 +653,7 @@ class PasswordManagerGUI:
 
     def on_search(self):
         """Handles the search functionality."""
+        self.reset_auto_lock_timer()
         keyword = self.search_entry.get()
         if not keyword:
             self.clear_search()
@@ -621,12 +679,15 @@ class PasswordManagerGUI:
 
     def clear_search(self):
         """Clears the search and refreshes the list."""
+        self.reset_auto_lock_timer()
         self.search_entry.delete(0, tk.END)
         self.current_search_results = []
         self.refresh_accounts_list()
 
     def add_account_dialog(self):
         """Opens a dialog to add a new account."""
+        self.reset_auto_lock_timer()
+
         dialog = tk.Toplevel(self.root)
         dialog.title("Add New Account")
         dialog.geometry("600x550")
@@ -753,6 +814,8 @@ class PasswordManagerGUI:
 
     def view_password(self):
         """Views the password for the selected account in a new popup window."""
+        self.reset_auto_lock_timer()
+
         selection = self.accounts_listbox.curselection()
         if not selection or selection[0] < 2:  # Ignore header rows
             messagebox.showwarning("Warning", "Please select a valid account.")
@@ -800,6 +863,8 @@ class PasswordManagerGUI:
 
     def delete_account_dialog(self):
         """Deletes the selected account after confirmation."""
+        self.reset_auto_lock_timer()
+
         selection = self.accounts_listbox.curselection()
         if not selection or selection[0] < 2:  # Ignore header rows
             messagebox.showwarning("Warning", "Please select a valid account.")
