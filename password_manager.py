@@ -351,3 +351,34 @@ def generate_secure_password(length, use_upper, use_lower, use_digits, use_speci
 
     secrets.SystemRandom().shuffle(password)
     return "".join(password)
+
+
+class PasswordManagerGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Secure Password Manager")
+        # Increased default geometry to ensure all elements are visible
+        self.root.geometry("850x650")
+        self.root.resizable(True, True)
+
+        style = ttk.Style()
+        style.theme_use('clam')
+
+        # Define custom styles for buttons
+        style.configure('Accent.TButton', foreground='white', background='#4CAF50')
+        style.map('Accent.TButton', background=[('active', '#45a049')])
+        style.configure('Danger.TButton', foreground='white', background='#F44336')
+        style.map('Danger.TButton', background=[('active', '#d32f2f')])
+
+        self.manager = PasswordManager()
+        self.current_search_results = []
+
+        # Start directly with the master key window
+        self.setup_master_password_window()
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def on_closing(self):
+        """Handles the window closing event."""
+        self.root.destroy()
+
