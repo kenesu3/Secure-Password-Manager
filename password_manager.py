@@ -382,3 +382,75 @@ class PasswordManagerGUI:
         """Handles the window closing event."""
         self.root.destroy()
 
+    # --- Master Key UI ---
+    def setup_master_password_window(self):
+        """Creates a dialog to set/enter the master password."""
+        # Clear the root window
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        self.master_key_frame = ttk.Frame(self.root, padding="20")
+        self.master_key_frame.pack(expand=True, fill='both')
+
+        is_key_set = os.path.exists(KEY_FILE)
+
+        if is_key_set:
+            ttk.Label(self.master_key_frame, text="Enter Master Key to Unlock Passwords:",
+                      font=("Arial", 16, "bold")).pack(pady=10)
+            confirm_entry = None
+        else:
+            ttk.Label(self.master_key_frame, text="Set New Master Key for Encryption:",
+                      font=("Arial", 16, "bold")).pack(pady=10)
+
+            # Display requirements
+            req_text = "Master Key Requirements:\n"
+            req_text += f"- Minimum {MASTER_KEY_REQUIREMENTS['min_length']} characters\n"
+            req_text += "- At least 1 uppercase letter (A-Z)\n"
+            req_text += "- At least 1 lowercase letter (a-z)\n"
+            req_text += "- At least 1 number (0-9)\n"
+            req_text += "- At least 1 special character (!@#$%^& etc.)"
+            ttk.Label(self.master_key_frame, text=req_text, justify=tk.LEFT, foreground="gray").pack(pady=5)
+
+            # Confirm Master Key Entry
+            confirm_frame, confirm_entry = create_password_entry(self.master_key_frame, "Confirm Key:", width=25)
+            confirm_frame.pack(pady=5)
+
+        # Master Key Entry
+        master_key_frame, master_key_entry = create_password_entry(self.master_key_frame, "Master Key:", width=25)
+        master_key_frame.pack(pady=5)
+        master_key_entry.focus()
+
+        def set_master_key():
+            master_key = master_key_entry.get()
+
+            if not is_key_set:
+                # Validation for setting a new key
+                unmet_requirements = check_master_key_strength(master_key)
+                if unmet_requirements:
+                    messagebox.showerror("Weak Master Key",
+                                         "Your Master Key does not meet the following requirements:\n- " + "\n- ".join(
+                                             unmet_requirements))
+                    return
+
+                confirm = confirm_entry.get()
+                if master_key != confirm:
+                    messagebox.showerror("Error", "Master Keys do not match.")
+                    return
+
+            if not master_key:
+                messagebox.showerror("Error", "Master Key cannot be empty.")
+                return
+
+            if self.manager.load_key(master_key):
+                self.manager.load_data()
+                messagebox.showinfo("Success", "Passwords unlocked!")
+                self.master_key_frame.destroy()
+                self.create_main_ui()
+            else:
+                messagebox.showerror("Error", "Incorrect Master Key.")
+
+        button_frame = ttk.Frame(self.master_key_frame)
+        button_frame.pack(pady=20)
+
+        ttk.Button(button_frame, text="Unlock/Set Key", command=set_master_key, style='Accent.TButton').pack()
+
