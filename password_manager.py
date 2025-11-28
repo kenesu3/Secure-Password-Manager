@@ -132,3 +132,39 @@ class PasswordManager:
                 os.chmod(SALT_FILE, 0o600)
             except Exception as e:
                 print(f"Warning: Could not set file permissions for {SALT_FILE}: {e}")
+
+    def _derive_key(self, master_password: str) -> bytes:
+        """Derives a Fernet key from the master password using PBKDF2HMAC."""
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=self.salt,  # Use dynamic salt
+            iterations=480000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
+        return key
+
+    def load_key(self, password: str) -> bool:
+        """Loads the encryption key from a file or attempts to derive it."""
+        if os.path.exists(KEY_FILE):
+            try:
+                with open(KEY_FILE, "rb") as f:
+                    stored_key = f.read()
+
+                # Verify if the provided password can generate the stored key
+                derived_key = self._derive_key(password)
+                if derived_key == stored_key:
+                    self.key = derived_key
+                    self.fernet = Fernet(self.key)
+                    return True
+                else:
+                    return False  # Incorrect password
+            except Exception:
+                return False  # Key file corrupted
+        else:
+            # No key file exists, set a new one
+            self.key = self._derive_key(password)
+            with open(KEY_FILE, "wb") as f:
+                f.write(self.key)
+            self.fernet = Fernet(self.key)
+            return True
