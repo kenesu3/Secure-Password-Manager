@@ -213,3 +213,60 @@ class PasswordManager:
         except Exception as e:
             print(f"Error updating master key: {e}")
             return False
+    def load_data(self):
+        """Loads encrypted account data from the JSON file."""
+        if not self.key:
+            return
+
+        if os.path.exists(DATA_FILE):
+            try:
+                with open(DATA_FILE, "r") as f:
+                    data = json.load(f)
+                    # Load accounts for the single user
+                    self.accounts = data.get(SINGLE_USER_ID, [])
+            except json.JSONDecodeError:
+                self.accounts = []
+            except Exception:
+                self.accounts = []
+        else:
+            self.accounts = []
+
+    def save_data(self):
+        """Saves the current account data to the JSON file."""
+        if not self.key:
+            return False
+
+        all_data = {}
+        if os.path.exists(DATA_FILE):
+            try:
+                with open(DATA_FILE, "r") as f:
+                    all_data = json.load(f)
+            except json.JSONDecodeError:
+                pass  # Start with empty data if file is corrupted
+
+        # Update only the single user's accounts
+        all_data[SINGLE_USER_ID] = self.accounts
+
+        try:
+            with open(DATA_FILE, "w") as f:
+                json.dump(all_data, f, indent=4)
+            return True
+        except Exception:
+            return False
+
+    def encrypt_password(self, password: str) -> str:
+        """Encrypts a password using Fernet."""
+        if not self.fernet:
+            raise Exception("Fernet object not initialized.")
+        token = self.fernet.encrypt(password.encode())
+        return token.decode()
+
+    def decrypt_password(self, encrypted_password: str) -> str:
+        """Decrypts an encrypted password using Fernet."""
+        if not self.fernet:
+            raise Exception("Fernet object not initialized.")
+        try:
+            decrypted = self.fernet.decrypt(encrypted_password.encode())
+            return decrypted.decode()
+        except Exception:
+            return "DECRYPTION FAILED"
