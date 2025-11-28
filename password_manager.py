@@ -111,3 +111,24 @@ def create_password_entry(parent, label_text, width=30):
 
     return container_frame, entry
 
+
+class PasswordManager:
+    def __init__(self):
+        self.accounts = []
+        self.key = None
+        self.fernet = None
+        self.logged_in_user = SINGLE_USER_ID  # Fixed user
+
+        # --- Dynamic Salt Implementation ---
+        if os.path.exists(SALT_FILE):
+            with open(SALT_FILE, "rb") as f:
+                self.salt = f.read()
+        else:
+            self.salt = os.urandom(16)
+            with open(SALT_FILE, "wb") as f:
+                f.write(self.salt)
+            # Optionally set file permissions to 0o600
+            try:
+                os.chmod(SALT_FILE, 0o600)
+            except Exception as e:
+                print(f"Warning: Could not set file permissions for {SALT_FILE}: {e}")
